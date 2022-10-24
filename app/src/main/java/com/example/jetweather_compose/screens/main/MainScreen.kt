@@ -25,10 +25,14 @@ import com.example.jetweather_compose.utils.formatDecimals
 import com.example.jetweather_compose.widgets.*
 
 @Composable
-fun MainScreen(navController: NavController, mainViewModel: MainViewModel) {
+fun MainScreen(
+    navController: NavController,
+    mainViewModel: MainViewModel,
+    city: String?
+) {
     val weatherData = produceState<DataOrException<Weather, Boolean, Exception>>(
         initialValue = DataOrException(loading = true)) {
-        value = mainViewModel.getWeatherData("Seattle")
+        value = mainViewModel.getWeatherData("$city")
     }.value
 
     if(weatherData.loading == true) {
