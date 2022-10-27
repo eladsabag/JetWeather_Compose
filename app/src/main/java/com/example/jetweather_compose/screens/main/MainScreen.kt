@@ -1,25 +1,25 @@
 package com.example.jetweather_compose.screens.main
 
-import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.jetweather_compose.data.DataOrException
 import com.example.jetweather_compose.model.Weather
 import com.example.jetweather_compose.model.WeatherItem
 import com.example.jetweather_compose.navigation.WeatherScreens
+import com.example.jetweather_compose.screens.settings.SettingsViewModel
 import com.example.jetweather_compose.utils.formatDate
 import com.example.jetweather_compose.utils.formatDecimals
 import com.example.jetweather_compose.widgets.*
@@ -27,23 +27,39 @@ import com.example.jetweather_compose.widgets.*
 @Composable
 fun MainScreen(
     navController: NavController,
-    mainViewModel: MainViewModel,
+    mainViewModel: MainViewModel = hiltViewModel(),
+    settingsViewModel: SettingsViewModel = hiltViewModel(),
     city: String?
 ) {
-    val weatherData = produceState<DataOrException<Weather, Boolean, Exception>>(
-        initialValue = DataOrException(loading = true)) {
-        value = mainViewModel.getWeatherData("$city")
-    }.value
-
-    if(weatherData.loading == true) {
-        CircularProgressIndicator()
-    } else if(weatherData.data != null) {
-        MainScaffold(weather = weatherData.data!!, navController = navController)
+    val curCity: String = if (city!!.isBlank()) "Seattle" else city
+    val unitFromDB = settingsViewModel.unitList.collectAsState().value
+    var unit by remember {
+        mutableStateOf("imperial")
     }
+    var isImperial by remember {
+        mutableStateOf(false)
+    }
+
+    if(!unitFromDB.isNullOrEmpty()) {
+        unit = unitFromDB[0].unit.split(' ')[0].lowercase()
+        isImperial = unit == "imperial"
+
+        val weatherData = produceState<DataOrException<Weather, Boolean, Exception>>(
+            initialValue = DataOrException(loading = true)) {
+            value = mainViewModel.getWeatherData(city = curCity, units = unit)
+        }.value
+
+        if(weatherData.loading == true) {
+            CircularProgressIndicator()
+        } else if(weatherData.data != null) {
+            MainScaffold(weather = weatherData.data!!, navController = navController, isImperial)
+        }
+    }
+
 }
 
 @Composable
-fun MainScaffold(weather: Weather, navController: NavController) {
+fun MainScaffold(weather: Weather, navController: NavController, isImperial: Boolean) {
     Scaffold(topBar = {
         WeatherAppBar(
             navController = navController,
@@ -52,16 +68,14 @@ fun MainScaffold(weather: Weather, navController: NavController) {
                                  navController.navigate(WeatherScreens.SearchScreen.name)
             },
             elevation = 5.dp
-        ) {
-            Log.d("pttt", "Button Clicked!")
-        }
+        ) { }
     }) {
-        MainContent(data = weather)
+        MainContent(data = weather, isImperial = isImperial)
     }
 }
 
 @Composable
-fun MainContent(data: Weather) {
+fun MainContent(data: Weather, isImperial: Boolean) {
     val weatherItem = data.list[0]
     val imageUrl = "https://openweathermap.org/img/wn/${data.list[0].weather[0].icon}.png"
     Column(
@@ -101,7 +115,7 @@ fun MainContent(data: Weather) {
                 )
             }
         }
-        HumidityWindPressureRow(weather = weatherItem)
+        HumidityWindPressureRow(weather = weatherItem, isImperial = isImperial)
         Divider()
         SunsetSunriseRow(weather = data.list[0])
         Text(

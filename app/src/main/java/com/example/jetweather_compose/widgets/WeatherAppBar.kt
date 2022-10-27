@@ -1,27 +1,31 @@
 package com.example.jetweather_compose.widgets
 
+import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.jetweather_compose.model.Favorite
 import com.example.jetweather_compose.navigation.WeatherScreens
+import com.example.jetweather_compose.screens.favorites.FavoriteViewModel
 
 @Composable
 fun WeatherAppBar(
@@ -30,10 +34,13 @@ fun WeatherAppBar(
     isMainScreen: Boolean = true,
     elevation: Dp = 0.dp,
     navController: NavController,
+    favoriteViewModel: FavoriteViewModel = hiltViewModel(),
     onAddActionClicked: () -> Unit = {},
     onButtonClicked: () -> Unit = {}
 ) {
     val showDialog = remember { mutableStateOf(false) }
+    val showIt = remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     if(showDialog.value) {
         ShowSettingDropDownMenu(
@@ -74,10 +81,50 @@ fun WeatherAppBar(
                           modifier = Modifier.clickable { onButtonClicked.invoke() }
                       )
                   }
+            if(isMainScreen) {
+                val isAlreadyFavList = favoriteViewModel.favList.collectAsState().value.filter { item ->
+                    (item.city == title.split(',')[0].trim())
+                }
+
+                if(isAlreadyFavList.isEmpty()) {
+                    Icon(
+                        imageVector = Icons.Default.Favorite,
+                        contentDescription = "favorite icon",
+                        modifier = Modifier
+                            .scale(0.9f)
+                            .clickable {
+                                val data = title.split(',')
+                                favoriteViewModel.insertFavorite(
+                                    Favorite(
+                                        city = data[0].trim(),
+                                        country = data[1].trim()
+                                    )
+                                ).run {
+                                    showIt.value = true
+                                }
+                            },
+                        tint = Color.Red.copy(alpha = 0.6f)
+                    )
+                } else {
+                    Box {}
+                }
+
+                ShowToast(context = context, showIt = showIt)
+            }
         },
         backgroundColor = Color.Transparent,
         elevation = elevation
     )
+}
+
+@Composable
+fun ShowToast(
+    context: Context,
+    showIt: MutableState<Boolean>
+) {
+   if(showIt.value) {
+       Toast.makeText(context, "Added to favorites", Toast.LENGTH_SHORT).show()
+   }
 }
 
 @Composable
